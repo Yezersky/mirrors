@@ -4,13 +4,26 @@ from time import mktime, strptime
 from os import makedirs, path, stat, utime
 from urllib import urlretrieve, urlopen
 from xml.etree import ElementTree
+import logging
+import logging.handlers
 
 base_url = 'https://dl.google.com/android/repository/'
-out_dir = '/data/mirrors/android/repository'
+out_dir = 'D:\\mirrors\\android\\repository'
+LOG_FILE = 'D:\\mirrors\\log\\android.log'
+
+handler = logging.handlers.RotatingFileHandler(LOG_FILE, maxBytes = 1024*1024, backupCount = 5)
+fmt = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
+
+formatter = logging.Formatter(fmt)
+handler.setFormatter(formatter)
+logger = logging.getLogger('android')
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 def download(filename, last_modified):
    file = out_dir + filename
    print 'Downloading ' + filename
+   logger.info('Downloading ' + filename)
    urlretrieve(base_url + filename, file)
    utime(file, (last_modified, last_modified))
 
@@ -20,9 +33,11 @@ def process(filename, size=-1):
    file = out_dir + filename
    if path.isfile(file) and stat(file).st_size == size:
       print 'Skipping: ' + filename
+      logger.info('Skipping: ' + filename)
       return
 
    print 'Processing: ' + filename
+   logger.info('Processing: ' + filename)
    handle = urlopen(base_url + filename)
    headers = handle.info()
    content_length = int(headers.getheader('Content-Length'))
@@ -35,6 +50,7 @@ def process(filename, size=-1):
 
    if not path.isdir(dir):
       print 'Creating ' + dir
+      logger.info('Creating ' + dir)
       makedirs(dir)
 
    if not path.isfile(file):
@@ -45,6 +61,7 @@ def process(filename, size=-1):
          download(filename, last_modified)
       else:
          print 'Skipping: ' + filename
+         logger.info('Skipping: ' + filename)
 
 def fetch(file):
    if base_url in file:
@@ -66,5 +83,6 @@ def fetch(file):
                process(base_dir + element.text)
          else:
             fetch(element.text)
+            
 for file in ['repository-8.xml', 'repository-7.xml', 'repository-6.xml', 'repository-5.xml', 'repository-10.xml', 'addons_list-2.xml', 'addons_list-1.xml']:
    fetch(file)
